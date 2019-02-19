@@ -1,20 +1,40 @@
 #include <iostream>
 #include <cstring>
+#include <fstream>
+#include <memory>
+#include <cstdlib>
+#include <sstream>
+#include <iomanip>
 #include "qdpb.h"
 
-char* leak_copy(const char* ptr, const char* end= nullptr) {
-    if (not end)
-        end = strlen(ptr) + ptr;
-    size_t size = end - ptr;
-    auto out = (char*) malloc(size + 1);
-    *(out + size) = 0;
-    memcpy(out, ptr, end - ptr);
-    return out;
+#define VERIFY(x) ((x) or barf(#x, __FILE__, __LINE__))
+
+inline bool barf(const char *cond_string, const char *fn, int line) {
+    throw std::runtime_error(std::string("failed VERIFY: ") + cond_string + " " + fn + " " + std::to_string(line));
 }
 
-int main()
+
+int main(int argc, char** argv)
 {
     using namespace std;
+    using namespace qdpb;
+
+    if (argc > 1) {
+        Parser parser;
+        ifstream handle(argv[1], ios::binary | ios::in | ios::ate);
+        VERIFY(handle.is_open());
+        long size = handle.tellg();
+        string s(size, 0);
+        auto ptr = (char*) s.c_str();
+        handle.seekg(0, ios::beg);
+        handle.read(ptr, size);
+        handle.close();
+        parser.parse((const char*) ptr, ptr+size);
+        cout << parser.dump() << endl;
+        return 0;
+    }
+
+
     /*
     auto msg = "Hello, World!";
     cout.write("=>", 2);
@@ -40,7 +60,8 @@ int main()
     cout << "hit: " << hit << endl;
     cout << "=>" << std::string(c, s) << "<=" << endl;
     cout << chomper.get_value<int>(1) << endl;
-    auto m5 = leak_copy(m4);
+    string s4(m4);
+    auto m5 = (char*) s4.c_str();
     chomper.parse(m5);
     hit = chomper.get_string(2, c, s);
     cout << "hit: " << hit << endl;
